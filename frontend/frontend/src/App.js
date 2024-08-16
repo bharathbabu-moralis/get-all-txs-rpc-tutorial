@@ -5,18 +5,19 @@ function App() {
   const [address, setAddress] = useState("");
   const [fromBlock, setFromBlock] = useState("");
   const [toBlock, setToBlock] = useState("");
+  const [cursor, setCursor] = useState("");
   const [limit, setLimit] = useState("");
   const [transactions, setTransactions] = useState([]);
-  const [cursor, setCursor] = useState("");
+  const [responseCursor, setResponseCursor] = useState("");
 
   const fetchTransactions = async () => {
     const params = {
       address,
+      ...(fromBlock && { fromBlock: parseInt(fromBlock) }),
+      ...(toBlock && { toBlock: parseInt(toBlock) }),
+      ...(cursor && { cursor }),
+      ...(limit && { limit: parseInt(limit) }),
     };
-
-    if (fromBlock) params.fromBlock = parseInt(fromBlock, 10);
-    if (toBlock) params.toBlock = parseInt(toBlock, 10);
-    if (limit) params.limit = parseInt(limit, 10);
 
     const options = {
       method: "POST",
@@ -39,21 +40,20 @@ function App() {
       );
       const data = await response.json();
       setTransactions(data.result.result);
-      setCursor(data.result.cursor);
+      setResponseCursor(data.result.cursor || "");
     } catch (error) {
-      console.error(error);
+      console.error("Error fetching transactions", error);
     }
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(responseCursor);
   };
 
   return (
     <div className="container">
-      <img
-        src="https://admin.moralis.io/assets/moralisLogo-DnjUHa6D.svg"
-        alt="Moralis Logo"
-        className="logo"
-      />
-      <div className="header">
-        <h1 className="title">Extended RPC Demo</h1>
+      <header className="header">
+        <h1 className="title">Moralis Extended RPC Demo</h1>
         <p className="apiInfo">
           RPC API:{" "}
           <a
@@ -65,84 +65,96 @@ function App() {
             eth_getTransactions
           </a>
         </p>
-      </div>
 
-      <div className="inputContainer">
-        <input
-          type="text"
-          placeholder="Address (required)"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          className="input"
-        />
-        <input
-          type="text"
-          placeholder="From Block (optional)"
-          value={fromBlock}
-          onChange={(e) => setFromBlock(e.target.value)}
-          className="input"
-        />
-        <input
-          type="text"
-          placeholder="To Block (optional)"
-          value={toBlock}
-          onChange={(e) => setToBlock(e.target.value)}
-          className="input"
-        />
-        <input
-          type="text"
-          placeholder="Limit (optional)"
-          value={limit}
-          onChange={(e) => setLimit(e.target.value)}
-          className="input"
-        />
-        <button onClick={fetchTransactions} className="button">
-          Fetch Transactions
-        </button>
-      </div>
-
-      <div className="tableContainer">
-        <table className="table">
-          <thead>
-            <tr className="tableRow">
-              <th className="tableHeader">From Address</th>
-              <th className="tableHeader">To Address</th>
-              <th className="tableHeader">Hash</th>
-              <th className="tableHeader">Value</th>
-              <th className="tableHeader">Gas Used</th>
-              <th className="tableHeader">Block Number</th>
-              <th className="tableHeader">Block Hash</th>
-            </tr>
-          </thead>
-          <tbody>
-            {transactions.map((tx) => (
-              <tr key={tx.hash} className="tableRow">
-                <td className="tableCell">{tx.from_address}</td>
-                <td className="tableCell">{tx.to_address}</td>
-                <td className="tableCell">{tx.hash}</td>
-                <td className="tableCell">{tx.value}</td>
-                <td className="tableCell">{tx.receipt_gas_used}</td>
-                <td className="tableCell">{tx.block_number}</td>
-                <td className="tableCell">{tx.block_hash}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {cursor && (
-        <div className="cursorContainer">
-          <p className="cursorText">
-            Cursor: <span className="cursorValue">{cursor}</span>
-          </p>
-          <button
-            className="copyButton"
-            onClick={() => navigator.clipboard.writeText(cursor)}
-          >
-            Copy Cursor
+        <div className="inputContainer">
+          <input
+            type="text"
+            placeholder="Address (Required)"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            required
+            className="input"
+          />
+          <input
+            type="number"
+            placeholder="From Block (Optional)"
+            value={fromBlock}
+            onChange={(e) => setFromBlock(e.target.value)}
+            className="input"
+          />
+          <input
+            type="number"
+            placeholder="To Block (Optional)"
+            value={toBlock}
+            onChange={(e) => setToBlock(e.target.value)}
+            className="input"
+          />
+          <input
+            type="number"
+            placeholder="Limit (Optional)"
+            value={limit}
+            onChange={(e) => setLimit(e.target.value)}
+            className="input"
+          />
+          <input
+            type="text"
+            placeholder="Cursor (Optional)"
+            value={cursor}
+            onChange={(e) => setCursor(e.target.value)}
+            className="input"
+          />
+          <button onClick={fetchTransactions} className="button">
+            Fetch Transactions
           </button>
         </div>
-      )}
+
+        <div className="tableContainer">
+          <table className="table">
+            <thead>
+              <tr className="tableRow">
+                <th className="tableHeader">From Address</th>
+                <th className="tableHeader">To Address</th>
+                <th className="tableHeader">Hash</th>
+                <th className="tableHeader">Value (ETH)</th>
+                <th className="tableHeader">Gas Used</th>
+                <th className="tableHeader">Block Number</th>
+                <th className="tableHeader">Block Hash</th>
+                <th className="tableHeader">Timestamp</th>
+              </tr>
+            </thead>
+            <tbody>
+              {transactions.map((tx) => (
+                <tr key={tx.hash} className="tableRow">
+                  <td className="tableCell">{tx.from_address}</td>
+                  <td className="tableCell">{tx.to_address}</td>
+                  <td className="tableCell">{tx.hash}</td>
+                  <td className="tableCell">
+                    {(parseFloat(tx.value) / 1e18).toFixed(4)}
+                  </td>
+                  <td className="tableCell">{tx.receipt_gas_used}</td>
+                  <td className="tableCell">{tx.block_number}</td>
+                  <td className="tableCell">{tx.block_hash}</td>
+                  <td className="tableCell">
+                    {new Date(tx.block_timestamp).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {responseCursor && (
+          <div className="cursorContainer">
+            <p className="cursorText">
+              Next cursor:{" "}
+              <span className="cursorValue">{responseCursor}</span>
+            </p>
+            <button onClick={copyToClipboard} className="copyButton">
+              Copy Cursor
+            </button>
+          </div>
+        )}
+      </header>
     </div>
   );
 }
